@@ -80,23 +80,25 @@
             if (newPlayerName && !players.includes(newPlayerName)) {
                 players.push(newPlayerName);
                 $('#new-player-name').val('');
-                renderPlayers();
+                // Only render the players card, which will re-attach its listeners
+                renderPlayers(); 
             }
         }
 
         function removePlayer(name) {
             players = players.filter(p => p !== name);
+            // Only render the players card, which will re-attach its listeners
             renderPlayers();
         }
 
         function shufflePlayers() {
             players.sort(() => Math.random() - 0.5);
+            // Only render the players card, which will re-attach its listeners
             renderPlayers();
         }
 
         function generateSchedule() {
             if (players.length < 4) {
-                // Using console.log instead of alert per instructions
                 console.log("Need at least 4 players for doubles."); 
                 return;
             }
@@ -119,8 +121,9 @@
                 const availableOpponents = players.filter(p => p !== p1 && p !== p2);
                 
                 // Simple opponent assignment: just take the first two available
-                const opp1 = availableOpponents[0];
-                const opp2 = availableOpponents[1];
+                const shuffledOpp = availableOpponents.sort(() => Math.random() - 0.5);
+                const opp1 = shuffledOpp[0];
+                const opp2 = shuffledOpp[1];
 
                 // Ensure we have 4 players before adding a match
                 if (opp1 && opp2) {
@@ -247,6 +250,32 @@
                 </div>
             `;
         }
+        
+        // Helper to attach listeners specific to the Player Card, called after every re-render of this card.
+        function attachPlayerCardListeners() {
+            // Player Management
+            $('#add-player-btn').off('click').on('click', addPlayer);
+            $('#new-player-name').off('keypress').on('keypress', function(e) {
+                if (e.key === 'Enter') addPlayer();
+            });
+            // Delegated click handler for dynamically created remove buttons
+            $('#players-card').off('click', '.remove-player-btn').on('click', '.remove-player-btn', function() {
+                const name = $(this).data('player-name');
+                removePlayer(name);
+            });
+            $('#shuffle-players-btn').off('click').on('click', shufflePlayers);
+            
+            // Tournament Start/Reset
+            $('#start-tournament-btn').off('click').on('click', generateSchedule);
+            $('#reset-tournament-btn').off('click').on('click', function() {
+                if(confirm("Reset tournament? All scores will be lost.")) {
+                    tournamentStarted = false;
+                    matches = [];
+                    renderAll();
+                }
+            });
+        }
+
 
         function renderPlayers() {
             const playerListHtml = players.map((p, idx) => `
@@ -299,6 +328,9 @@
                 </div>
             `;
             $('#players-card').html(playerCardHtml);
+            
+            // FIX: Re-attach event listeners specific to the player card immediately after rendering
+            attachPlayerCardListeners();
         }
 
         function renderLeaderboard() {
@@ -479,18 +511,18 @@
             `;
             $('#app-container').html(appHtml);
 
-            // Render sub-components
+            // Render sub-components (these calls will re-attach their specific listeners)
             renderPlayers();
             renderLeaderboard();
             renderSchedule();
 
-            // Re-attach event listeners after re-rendering
-            attachEventListeners();
+            // Attach listeners that don't need re-attaching on card updates (Theme, Score/Type, Export)
+            attachGlobalListeners();
         }
 
         // --- EVENT LISTENERS ---
 
-        function attachEventListeners() {
+        function attachGlobalListeners() {
             // Theme Toggle
             $('#theme-toggle').off('click').on('click', () => {
                 theme = theme === 'dark' ? 'light' : 'dark';
@@ -498,29 +530,7 @@
                 renderAll();
             });
 
-            // Player Management
-            $('#add-player-btn').off('click').on('click', addPlayer);
-            $('#new-player-name').off('keypress').on('keypress', function(e) {
-                if (e.key === 'Enter') addPlayer();
-            });
-            $('#players-card').off('click', '.remove-player-btn').on('click', '.remove-player-btn', function() {
-                const name = $(this).data('player-name');
-                removePlayer(name);
-            });
-            $('#shuffle-players-btn').off('click').on('click', shufflePlayers);
-            
-            // Tournament Start/Reset
-            $('#start-tournament-btn').off('click').on('click', generateSchedule);
-            $('#reset-tournament-btn').off('click').on('click', function() {
-                // IMPORTANT: Using confirm only because I cannot use a custom modal here easily without over-complicating jQuery.
-                if(confirm("Reset tournament? All scores will be lost.")) {
-                    tournamentStarted = false;
-                    matches = [];
-                    renderAll();
-                }
-            });
-            
-            // Score and Type Updates (Delegated events)
+            // Score and Type Updates (Delegated events on the main schedule container)
             $('#schedule-card').off('input', '.score-input').on('input', '.score-input', function() {
                 const id = parseInt($(this).data('match-id'));
                 const field = $(this).data('field');
@@ -534,7 +544,7 @@
                 updateType(id, value);
             });
             
-            // CSV Export
+            // CSV Export (Delegated event on the leaderboard container)
             $('#leaderboard-card').off('click', '#export-csv-btn').on('click', '#export-csv-btn', exportToCSV);
         }
 
