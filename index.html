@@ -51,7 +51,7 @@
         <!-- The entire application UI will be rendered here by jQuery -->
     </div>
 
-     <!-- FOOTER ELEMENT - Content and styling updated by JS -->
+    <!-- FOOTER ELEMENT - Content and styling updated by JS -->
     <footer id="app-footer" class="py-4 text-center text-sm mt-8"></footer>
 
     <script>
@@ -479,6 +479,22 @@
             `;
             $('#schedule-card').html(scheduleCardHtml);
         }
+        
+        // NEW: Footer rendering function
+        function renderFooter() {
+            const currentYear = new Date().getFullYear();
+            const footerHtml = `
+                &copy; ${currentYear} Badminton Tournament Manager. All rights reserved. 
+                <span class="text-xs ml-2 ${getTextMutedClass()}">Policy by theroty.</span>
+            `;
+            const footerElement = $('#app-footer');
+            footerElement.html(footerHtml);
+            
+            // Update classes for theme switch
+            footerElement.removeClass().addClass('py-4 text-center text-sm mt-8 transition-colors');
+            footerElement.addClass(getThemeClass('border-slate-700 border-t text-slate-500', 'border-gray-300 border-t text-gray-600'));
+        }
+
 
         function renderAll() {
             // Apply body theme
@@ -518,6 +534,7 @@
             renderPlayers();
             renderLeaderboard();
             renderSchedule();
+            renderFooter(); // NEW: Call renderFooter here
 
             // Attach listeners that don't need re-attaching on card updates (Theme, Score/Type, Export)
             attachGlobalListeners();
