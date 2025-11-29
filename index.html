@@ -23,6 +23,8 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #0f172a; /* Slate 900 */
             color: #e2e8f0;
+            user-select: none; /* Disables text selection as an additional deterrent */
+            -webkit-user-select: none;
         }
         .glass-panel {
             background: rgba(30, 41, 59, 0.7);
@@ -72,6 +74,36 @@
                     window.removeEventListener('beforeunload', handleBeforeUnload);
                 };
             }, [tournamentStarted]);
+
+            // --- Logic: Disable Developer Tools (Right-click, F12, Ctrl+Shift+I, etc.) ---
+            useEffect(() => {
+                const handleContextMenu = (e) => {
+                    e.preventDefault();
+                };
+
+                const handleKeyDown = (e) => {
+                    // F12
+                    if (e.keyCode === 123) {
+                        e.preventDefault();
+                    }
+                    // Ctrl+Shift+I (Inspect) or Ctrl+Shift+J (Console) or Ctrl+Shift+C
+                    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'i' || e.key === 'j' || e.key === 'c')) {
+                        e.preventDefault();
+                    }
+                    // Ctrl+U (View Source)
+                    if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+                        e.preventDefault();
+                    }
+                };
+
+                document.addEventListener('contextmenu', handleContextMenu);
+                document.addEventListener('keydown', handleKeyDown);
+
+                return () => {
+                    document.removeEventListener('contextmenu', handleContextMenu);
+                    document.removeEventListener('keydown', handleKeyDown);
+                };
+            }, []);
 
             // --- Logic: Player Management ---
             const addPlayer = () => {
