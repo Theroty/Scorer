@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Badminton Tournament Manager</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #e2e8f0;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .shuttle-spin {
+            animation: spin 3s linear infinite;
+        }
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const App = () => {
+            // --- State ---
+            const [players, setPlayers] = useState([
+                "Sarathi", "Deepak", "Pradeep", "Mohan", "Charlesh", "Nadraj"
+            ]);
+            const [matches, setMatches] = useState([]);
+            const [tournamentStarted, setTournamentStarted] = useState(false);
+            const [newPlayerName, setNewPlayerName] = useState("");
+
+            // --- Logic: Player Management ---
+            const addPlayer = () => {
+                if (newPlayerName.trim() && !players.includes(newPlayerName)) {
+                    setPlayers([...players, newPlayerName.trim()]);
+                    setNewPlayerName("");
+                }
+            };
+
+            const removePlayer = (index) => {
+                const newPlayers = [...players];
+                newPlayers.splice(index, 1);
+                setPlayers(newPlayers);
+            };
+
+            const shufflePlayers = () => {
+                const shuffled = [...players].sort(() => Math.random() - 0.5);
+                setPlayers(shuffled);
+            };
+
+            // --- Logic: Scheduling ---
+            // Generates a schedule where every player partners with every other player once.
+            const generateSchedule = () => {
+                if (players.length < 4) {
+                    alert("Need at least 4 players for doubles.");
+                    return;
+                }
+
+                let newMatches = [];
+                let matchId = 1;
+
+                // 1. Generate all unique pairings (partnerships)
+                // Using simple Combinations nCr
+                let allPairs = [];
+                for (let i = 0; i < players.length; i++) {
+                    for (let j = i + 1; j < players.length; j++) {
+                        allPairs.push([players[i], players[j]]);
+                    }
+                }
+
+                // 2. Create Matches
+                // We want to ensure every pair gets to play.
+                // We iterate through our list of pairs and assign them an opponent pair.
+                // To make it simple and ensure everyone plays:
+                // We will create matches for every single pair against a random valid opponent.
+
+                // Shuffle pairs first to randomize order
+                allPairs.sort(() => Math.random() - 0.5);
+
+                allPairs.forEach((pair1) => {
+                    // Find a pair2 that shares NO players with pair1
+                    // For a balanced schedule in a simple app, we just pick the first valid one we find locally
+                    // Note: This is a simplified "American Tournament" generator.
+                    // In a perfect math world, this is the "Social Golfer Problem", which is hard.
+                    // We will just assign a random opponent for this specific pair logic.
+
+                    const p1 = pair1[0];
+                    const p2 = pair1[1];
+
+                    // Pick opponents who are NOT p1 or p2
+                    const availableOpponents = players.filter(p => p !== p1 && p !== p2);
+
+                    // Shuffle available opponents and pick 2
+                    const shuffledOpp = availableOpponents.sort(() => Math.random() - 0.5);
+                    const opp1 = shuffledOpp[0];
+                    const opp2 = shuffledOpp[1];
+
+                    // Add to match list
+                    newMatches.push({
+                        id: matchId++,
+                        t1: [p1, p2],
+                        t2: [opp1, opp2],
+                        score1: 0,
+                        score2: 0,
+                        played: false,
+                        type: "Normal" // Smash/Drop etc can be noted here
+                    });
+                });
+
+                setMatches(newMatches);
+                setTournamentStarted(true);
+            };
+
+            // --- Logic: Score Updates ---
+            const updateScore = (id, field, value) => {
+                const updatedMatches = matches.map(m => {
+                    if (m.id === id) {
+                        const val = parseInt(value) || 0;
+                        const newMatch = { ...m, [field]: val };
+                        // Mark as played if both scores are entered (simple logic, >0 not strictly required but good for UI)
+                        if (newMatch.score1 > 0 || newMatch.score2 > 0) newMatch.played = true;
+                        return newMatch;
+                    }
+                    return m;
+                });
+                setMatches(updatedMatches);
+            };
+
+            const updateType = (id, val) => {
+                setMatches(matches.map(m => m.id === id ? { ...m, type: val } : m));
+            };
+
+            // --- Logic: Leaderboard Calculation ---
+            const leaderboard = useMemo(() => {
+                const stats = {};
+
+                // Initialize
+                players.forEach(p => {
+                    stats[p] = { name: p, played: 0, wins: 0, losses: 0, diff: 0, points: 0 };
+                });
+
+                matches.forEach(m => {
+                    if (m.played) {
+                        const team1 = m.t1;
+                        const team2 = m.t2;
+                        const s1 = m.score1;
+                        const s2 = m.score2;
+                        const diff = s1 - s2;
+
+                        // Team 1 Stats
+                        team1.forEach(p => {
+                            if(stats[p]) {
+                                stats[p].played += 1;
+                                stats[p].diff += diff;
+                                if (s1 > s2) { stats[p].wins += 1; stats[p].points += 2; } // 2 pts for win
+                                else if (s1 === s2) { stats[p].points += 1; } // 1 pt draw
+                                else { stats[p].losses += 1; }
+                            }
+                        });
+
+                        // Team 2 Stats
+                        team2.forEach(p => {
+                            if(stats[p]) {
+                                stats[p].played += 1;
+                                stats[p].diff -= diff; // Subtract diff (or add negative)
+                                if (s2 > s1) { stats[p].wins += 1; stats[p].points += 2; }
+                                else if (s1 === s2) { stats[p].points += 1; }
+                                else { stats[p].losses += 1; }
+                            }
+                        });
+                    }
+                });
+
+                return Object.values(stats).sort((a, b) => b.points - a.points || b.diff - a.diff);
+            }, [matches, players]);
+
+            // --- Logic: Export to CSV ---
+            const exportToCSV = () => {
+                let csvContent = "data:text/csv;charset=utf-8,";
+
+                // Section 1: Leaderboard
+                csvContent += "LEADERBOARD\n";
+                csvContent += "Rank,Player,Matches Played,Wins,Losses,Score Diff,Points\n";
+                leaderboard.forEach((p, index) => {
+                    csvContent += `${index + 1},${p.name},${p.played},${p.wins},${p.losses},${p.diff},${p.points}\n`;
+                });
+
+                csvContent += "\nMATCH SCHEDULE\n";
+                csvContent += "Match ID,Team 1 P1,Team 1 P2,Team 2 P1,Team 2 P2,Score T1,Score T2,Playing Type\n";
+                matches.forEach(m => {
+                    csvContent += `${m.id},${m.t1[0]},${m.t1[1]},${m.t2[0]},${m.t2[1]},${m.score1},${m.score2},${m.type}\n`;
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "badminton_tournament.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            return (
+                <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                        <h1 className="text-4xl md:text-5xl font-bold text-green-400 mb-2">
+                            <i className="fa-solid fa-feather-pointed mr-3 shuttle-spin"></i>
+                            Shuttle Master
+                        </h1>
+                        <p className="text-slate-400">Tournament Scheduler & Scorer</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                        {/* LEFT COLUMN: Setup & Leaderboard */}
+                        <div className="lg:col-span-4 space-y-6">
+
+                            {/* Players Card */}
+                            <div className="glass-panel rounded-xl p-6 shadow-lg">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-bold text-white"><i className="fa-solid fa-users mr-2"></i> Players</h2>
+                                    <span className="bg-slate-700 px-2 py-1 rounded text-xs text-slate-300">{players.length} Players</span>
+                                </div>
+
+                                {!tournamentStarted && (
+                                    <div className="flex gap-2 mb-4">
+                                        <input
+                                            type="text"
+                                            className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-green-500"
+                                            placeholder="Add player..."
+                                            value={newPlayerName}
+                                            onChange={(e) => setNewPlayerName(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && addPlayer()}
+                                        />
+                                        <button onClick={addPlayer} className="bg-green-600 hover:bg-green-700 text-white px-4 rounded transition">
+                                            <i className="fa-solid fa-plus"></i>
+                                        </button>
+                                    </div>
+                                )}
+
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {players.map((p, idx) => (
+                                        <div key={idx} className="group relative bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-full text-sm flex items-center transition cursor-default">
+                                            {p}
+                                            {!tournamentStarted && (
+                                                <button onClick={() => removePlayer(idx)} className="ml-2 text-red-400 hover:text-red-300">
+                                                    <i className="fa-solid fa-times"></i>
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {!tournamentStarted ? (
+                                    <div className="flex gap-2">
+                                        <button onClick={shufflePlayers} className="flex-1 bg-slate-600 hover:bg-slate-500 py-2 rounded text-white font-semibold transition">
+                                            <i className="fa-solid fa-shuffle mr-2"></i> Shuffle
+                                        </button>
+                                        <button onClick={generateSchedule} className="flex-1 bg-green-600 hover:bg-green-500 py-2 rounded text-white font-semibold transition">
+                                            Start <i className="fa-solid fa-play ml-2"></i>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => {if(confirm("Reset tournament? All scores will be lost.")) {setTournamentStarted(false); setMatches([]);}}} className="w-full bg-red-900/50 hover:bg-red-900 text-red-200 py-2 rounded border border-red-800 transition">
+                                        Reset Tournament
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Leaderboard Card */}
+                            {tournamentStarted && (
+                                <div className="glass-panel rounded-xl p-6 shadow-lg border-t-4 border-t-yellow-500">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-xl font-bold text-white"><i className="fa-solid fa-trophy mr-2 text-yellow-400"></i> Standings</h2>
+                                        <button onClick={exportToCSV} className="text-xs bg-green-800 hover:bg-green-700 text-green-100 px-2 py-1 rounded">
+                                            <i className="fa-solid fa-file-excel mr-1"></i> Export Excel
+                                        </button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="text-slate-400 border-b border-slate-600">
+                                                <tr>
+                                                    <th className="py-2">Player</th>
+                                                    <th className="py-2 text-center">P</th>
+                                                    <th className="py-2 text-center">W</th>
+                                                    <th className="py-2 text-center">Diff</th>
+                                                    <th className="py-2 text-right">Pts</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {leaderboard.map((p, i) => (
+                                                    <tr key={i} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition">
+                                                        <td className="py-2 font-medium">
+                                                            {i===0 && <i className="fa-solid fa-crown text-yellow-500 mr-1"></i>}
+                                                            {p.name}
+                                                        </td>
+                                                        <td className="py-2 text-center text-slate-400">{p.played}</td>
+                                                        <td className="py-2 text-center text-green-400">{p.wins}</td>
+                                                        <td className={`py-2 text-center ${p.diff > 0 ? 'text-green-400' : 'text-red-400'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
+                                                        <td className="py-2 text-right font-bold text-white">{p.points}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* RIGHT COLUMN: Schedule */}
+                        <div className="lg:col-span-8">
+                            <div className="glass-panel rounded-xl p-6 shadow-lg min-h-[600px]">
+                                <h2 className="text-xl font-bold text-white mb-6 flex items-center">
+                                    <i className="fa-regular fa-calendar-check mr-2"></i>
+                                    Match Schedule
+                                    {tournamentStarted && <span className="ml-3 text-sm font-normal text-slate-400">({matches.length} Matches Generated - Partner Rotation)</span>}
+                                </h2>
+
+                                {!tournamentStarted ? (
+                                    <div className="flex flex-col items-center justify-center h-64 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">
+                                        <i className="fa-solid fa-clipboard-list text-4xl mb-4"></i>
+                                        <p>Add players and click Start to generate fixtures.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-4">
+                                        {matches.map((match) => (
+                                            <div key={match.id} className={`relative rounded-lg p-4 transition-all duration-200 border ${match.played ? 'bg-slate-800/80 border-slate-600' : 'bg-slate-800/40 border-slate-700'}`}>
+                                                <div className="absolute top-2 left-3 text-xs text-slate-500 font-mono">Match #{match.id}</div>
+
+                                                <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-4">
+
+                                                    {/* Team 1 */}
+                                                    <div className={`flex-1 flex flex-col items-center p-2 rounded ${match.score1 > match.score2 && match.played ? 'bg-green-900/20 ring-1 ring-green-500/50' : ''}`}>
+                                                        <div className="flex gap-2 mb-2 font-semibold text-lg">
+                                                            <span>{match.t1[0]}</span> & <span>{match.t1[1]}</span>
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            value={match.score1}
+                                                            onChange={(e) => updateScore(match.id, 'score1', e.target.value)}
+                                                            className="bg-slate-900 text-center text-2xl font-bold w-20 py-1 rounded border border-slate-600 focus:border-green-500 focus:outline-none"
+                                                        />
+                                                    </div>
+
+                                                    {/* VS Badge */}
+                                                    <div className="text-slate-500 font-bold text-xl px-2">VS</div>
+
+                                                    {/* Team 2 */}
+                                                    <div className={`flex-1 flex flex-col items-center p-2 rounded ${match.score2 > match.score1 && match.played ? 'bg-green-900/20 ring-1 ring-green-500/50' : ''}`}>
+                                                        <div className="flex gap-2 mb-2 font-semibold text-lg">
+                                                            <span>{match.t2[0]}</span> & <span>{match.t2[1]}</span>
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            value={match.score2}
+                                                            onChange={(e) => updateScore(match.id, 'score2', e.target.value)}
+                                                            className="bg-slate-900 text-center text-2xl font-bold w-20 py-1 rounded border border-slate-600 focus:border-green-500 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Meta Data */}
+                                                <div className="mt-4 pt-3 border-t border-slate-700 flex items-center gap-2">
+                                                    <span className="text-xs text-slate-400 uppercase tracking-wider">Play Type:</span>
+                                                    <select
+                                                        value={match.type}
+                                                        onChange={(e) => updateType(match.id, e.target.value)}
+                                                        className="bg-slate-900 text-xs text-slate-300 border border-slate-600 rounded px-2 py-1 focus:outline-none"
+                                                    >
+                                                        <option value="Normal">Normal</option>
+                                                        <option value="Smash Heavy">Smash Heavy</option>
+                                                        <option value="Drop Game">Drop Game</option>
+                                                        <option value="Rally">Long Rally</option>
+                                                        <option value="Net Play">Net Play</option>
+                                                    </select>
+                                                    
+                                                    {match.played && (
+                                                        <span className="ml-auto text-xs text-slate-400">
+                                                            Diff: {Math.abs(match.score1 - match.score2)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
