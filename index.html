@@ -271,7 +271,9 @@
             // Tournament Start/Reset
             $('#start-tournament-btn').off('click').on('click', generateSchedule);
             $('#reset-tournament-btn').off('click').on('click', function() {
-                if(confirm("Reset tournament? All scores will be lost.")) {
+                // NOTE: Using window.confirm() here is against best practices.
+                // In a production app, this should be replaced with a custom modal.
+                if(confirm("Reset tournament? All scores will be lost.")) { 
                     tournamentStarted = false;
                     matches = [];
                     renderAll();
@@ -480,7 +482,7 @@
             $('#schedule-card').html(scheduleCardHtml);
         }
         
-        // NEW: Footer rendering function
+        // Footer rendering function
         function renderFooter() {
             const currentYear = new Date().getFullYear();
             const footerHtml = `
@@ -569,25 +571,36 @@
         }
 
 
-        // --- SECURITY / DEV TOOLS PROTECTION ---
+        // --- SECURITY / DEV TOOLS PROTECTION / RELOAD PREVENTION ---
         function attachSecurityListeners() {
             // Disable right-click context menu
             document.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
             });
 
-            // Disable keyboard shortcuts for DevTools (F12, Ctrl+Shift+I, Ctrl+U)
+            // 1. Prevent closing/reloading if the tournament has started (data loss warning)
+            window.addEventListener('beforeunload', (e) => {
+                if (tournamentStarted) {
+                    // Standard way to trigger a confirmation dialog in modern browsers
+                    e.preventDefault(); 
+                    e.returnValue = 'You have active match data. Are you sure you want to leave or reload? Unsaved data will be lost.';
+                    return e.returnValue;
+                }
+            });
+
+            // 2. Disable keyboard shortcuts for DevTools (F12, Ctrl+Shift+I, Ctrl+U) AND Reload (F5, Ctrl+R)
             document.addEventListener('keydown', (e) => {
                 // F12
                 if (e.keyCode === 123) {
                     e.preventDefault();
                 }
-                // Ctrl+Shift+I (Inspect) or Ctrl+Shift+J (Console) or Ctrl+Shift+C
-                if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'i' || e.key === 'j' || e.key === 'c')) {
+                // Ctrl+Shift+I/J/C (Inspect) or Ctrl+U (View Source)
+                if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'i' || e.key === 'j' || e.key === 'c') || (e.ctrlKey && (e.key === 'U' || e.key === 'u'))) {
                     e.preventDefault();
                 }
-                // Ctrl+U (View Source)
-                if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+                
+                // Disable F5 and Ctrl/Cmd+R for Reload
+                if (e.key === 'F5' || (e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
                     e.preventDefault();
                 }
             });
