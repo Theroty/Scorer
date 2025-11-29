@@ -21,15 +21,21 @@
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #0f172a; /* Slate 900 */
-            color: #e2e8f0;
-            user-select: none; /* Disables text selection as an additional deterrent */
+            /* Color is now managed by the root component */
+            user-select: none;
             -webkit-user-select: none;
         }
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.7);
+        /* Dark Mode Glass Panel */
+        .glass-panel-dark {
+            background: rgba(30, 41, 59, 0.7); /* slate-800 */
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        /* Light Mode Glass Panel */
+        .glass-panel-light {
+            background: rgba(255, 255, 255, 0.8); /* white */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
         }
         .shuttle-spin {
             animation: spin 3s linear infinite;
@@ -51,7 +57,8 @@
         const { useState, useEffect, useMemo } = React;
 
         const App = () => {
-            // --- State ---
+            // --- State Initialization ---
+            const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
             const [players, setPlayers] = useState([
                 "Sarathi", "Deepak", "Pradeep", "Mohan", "Charlesh", "Nadraj"
             ]);
@@ -59,7 +66,32 @@
             const [tournamentStarted, setTournamentStarted] = useState(false);
             const [newPlayerName, setNewPlayerName] = useState("");
 
-            // --- Logic: Prevent Accidental Reload ---
+            // --- Logic: Theme Management & Persistence ---
+            useEffect(() => {
+                localStorage.setItem('theme', theme);
+            }, [theme]);
+
+            const toggleTheme = () => {
+                setTheme(currentTheme => (currentTheme === 'dark' ? 'light' : 'dark'));
+            };
+
+            // Helper function to get dynamic classes
+            const getThemeClass = (darkClass, lightClass) => theme === 'dark' ? darkClass : lightClass;
+            const getPrimaryColorClass = (base) => theme === 'dark' ? `text-green-${base}` : `text-blue-${base}`;
+            const getPrimaryBgClass = (base) => theme === 'dark' ? `bg-green-${base}` : `bg-blue-${base}`;
+            const getPrimaryHoverClass = (base) => theme === 'dark' ? `hover:bg-green-${base}` : `hover:bg-blue-${base}`;
+            const getPrimaryRingClass = () => theme === 'dark' ? `ring-green-500/50` : `ring-blue-500/50`;
+            const getPanelClass = () => theme === 'dark' ? 'glass-panel-dark' : 'glass-panel-light';
+            const getTextMutedClass = () => theme === 'dark' ? 'text-slate-400' : 'text-gray-600';
+            const getInputBorderClass = () => theme === 'dark' ? 'border-slate-600' : 'border-gray-300';
+            const getInputBgClass = () => theme === 'dark' ? 'bg-slate-800' : 'bg-white';
+            const getPanelBorderClass = () => theme === 'dark' ? 'border-slate-600' : 'border-gray-200';
+            const getPanelHeaderBgClass = () => theme === 'dark' ? 'bg-slate-700' : 'bg-gray-200';
+            const getTextPanelClass = () => theme === 'dark' ? 'text-white' : 'text-gray-900';
+            const getTableBorderClass = () => theme === 'dark' ? 'border-slate-700/50' : 'border-gray-300';
+
+
+            // --- Logic: Prevent Accidental Reload (Unchanged) ---
             useEffect(() => {
                 const handleBeforeUnload = (e) => {
                     if (tournamentStarted) {
@@ -75,7 +107,7 @@
                 };
             }, [tournamentStarted]);
 
-            // --- Logic: Disable Developer Tools (Right-click, F12, Ctrl+Shift+I, etc.) ---
+            // --- Logic: Disable Developer Tools (Right-click, F12, Ctrl+Shift+I, etc.) (Unchanged) ---
             useEffect(() => {
                 const handleContextMenu = (e) => {
                     e.preventDefault();
@@ -105,7 +137,7 @@
                 };
             }, []);
 
-            // --- Logic: Player Management ---
+            // --- Logic: Player Management (Unchanged) ---
             const addPlayer = () => {
                 if (newPlayerName.trim() && !players.includes(newPlayerName)) {
                     setPlayers([...players, newPlayerName.trim()]);
@@ -124,19 +156,17 @@
                 setPlayers(shuffled);
             };
 
-            // --- Logic: Scheduling ---
-            // Generates a schedule where every player partners with every other player once.
+            // --- Logic: Scheduling (Unchanged) ---
             const generateSchedule = () => {
                 if (players.length < 4) {
-                    alert("Need at least 4 players for doubles.");
+                    // Use a custom message box instead of alert in production, but for simplicity here:
+                    console.log("Need at least 4 players for doubles."); 
                     return;
                 }
 
                 let newMatches = [];
                 let matchId = 1;
 
-                // 1. Generate all unique pairings (partnerships)
-                // Using simple Combinations nCr
                 let allPairs = [];
                 for (let i = 0; i < players.length; i++) {
                     for (let j = i + 1; j < players.length; j++) {
@@ -144,34 +174,17 @@
                     }
                 }
 
-                // 2. Create Matches
-                // We want to ensure every pair gets to play.
-                // We iterate through our list of pairs and assign them an opponent pair.
-                // To make it simple and ensure everyone plays:
-                // We will create matches for every single pair against a random valid opponent.
-                
-                // Shuffle pairs first to randomize order
                 allPairs.sort(() => Math.random() - 0.5);
 
                 allPairs.forEach((pair1) => {
-                    // Find a pair2 that shares NO players with pair1
-                    // For a balanced schedule in a simple app, we just pick the first valid one we find locally
-                    // Note: This is a simplified "American Tournament" generator. 
-                    // In a perfect math world, this is the "Social Golfer Problem", which is hard.
-                    // We will just assign a random opponent for this specific pair logic.
-                    
                     const p1 = pair1[0];
                     const p2 = pair1[1];
-
-                    // Pick opponents who are NOT p1 or p2
                     const availableOpponents = players.filter(p => p !== p1 && p !== p2);
                     
-                    // Shuffle available opponents and pick 2
                     const shuffledOpp = availableOpponents.sort(() => Math.random() - 0.5);
                     const opp1 = shuffledOpp[0];
                     const opp2 = shuffledOpp[1];
 
-                    // Add to match list
                     newMatches.push({
                         id: matchId++,
                         t1: [p1, p2],
@@ -179,7 +192,7 @@
                         score1: 0,
                         score2: 0,
                         played: false,
-                        type: "Normal" // Smash/Drop etc can be noted here
+                        type: "Normal"
                     });
                 });
 
@@ -187,13 +200,13 @@
                 setTournamentStarted(true);
             };
 
-            // --- Logic: Score Updates ---
+            // --- Logic: Score Updates (Unchanged) ---
             const updateScore = (id, field, value) => {
                 const updatedMatches = matches.map(m => {
                     if (m.id === id) {
                         const val = parseInt(value) || 0;
                         const newMatch = { ...m, [field]: val };
-                        // Mark as played if both scores are entered (simple logic, >0 not strictly required but good for UI)
+                        // Mark as played if at least one score is entered
                         if (newMatch.score1 > 0 || newMatch.score2 > 0) newMatch.played = true;
                         return newMatch;
                     }
@@ -206,7 +219,7 @@
                 setMatches(matches.map(m => m.id === id ? { ...m, type: val } : m));
             };
 
-            // --- Logic: Leaderboard Calculation ---
+            // --- Logic: Leaderboard Calculation (Unchanged) ---
             const leaderboard = useMemo(() => {
                 const stats = {};
                 
@@ -228,8 +241,8 @@
                             if(stats[p]) {
                                 stats[p].played += 1;
                                 stats[p].diff += diff;
-                                if (s1 > s2) { stats[p].wins += 1; stats[p].points += 2; } // 2 pts for win
-                                else if (s1 === s2) { stats[p].points += 1; } // 1 pt draw
+                                if (s1 > s2) { stats[p].wins += 1; stats[p].points += 2; }
+                                else if (s1 === s2) { stats[p].points += 1; }
                                 else { stats[p].losses += 1; }
                             }
                         });
@@ -238,7 +251,7 @@
                         team2.forEach(p => {
                             if(stats[p]) {
                                 stats[p].played += 1;
-                                stats[p].diff -= diff; // Subtract diff (or add negative)
+                                stats[p].diff -= diff;
                                 if (s2 > s1) { stats[p].wins += 1; stats[p].points += 2; }
                                 else if (s1 === s2) { stats[p].points += 1; }
                                 else { stats[p].losses += 1; }
@@ -250,7 +263,7 @@
                 return Object.values(stats).sort((a, b) => b.points - a.points || b.diff - a.diff);
             }, [matches, players]);
 
-            // --- Logic: Export to CSV ---
+            // --- Logic: Export to CSV (Unchanged) ---
             const exportToCSV = () => {
                 let csvContent = "data:text/csv;charset=utf-8,";
                 
@@ -277,14 +290,23 @@
             };
 
             return (
-                <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
+                <div className={`min-h-screen p-4 md:p-8 max-w-7xl mx-auto ${getThemeClass('bg-slate-900 text-slate-200', 'bg-gray-100 text-gray-900')}`}>
                     {/* Header */}
-                    <div className="text-center mb-8">
-                        <h1 className="text-4xl md:text-5xl font-bold text-green-400 mb-2">
+                    <div className="text-center mb-8 flex flex-col items-center">
+                        <div className="w-full flex justify-end">
+                            <button 
+                                onClick={toggleTheme} 
+                                className={`p-2 rounded-full transition ${getThemeClass('bg-slate-800 hover:bg-slate-700 text-slate-300', 'bg-gray-200 hover:bg-gray-300 text-gray-600')}`}
+                                title={theme === 'dark' ? "Switch to Day Mode" : "Switch to Night Mode"}
+                            >
+                                <i className={theme === 'dark' ? "fa-solid fa-sun" : "fa-solid fa-moon"}></i>
+                            </button>
+                        </div>
+                        <h1 className={`text-4xl md:text-5xl font-bold ${getPrimaryColorClass(400)} mb-2 -mt-10`}>
                             <i className="fa-solid fa-feather-pointed mr-3 shuttle-spin"></i>
                             Shuttle Master
                         </h1>
-                        <p className="text-slate-400">Tournament Scheduler & Scorer</p>
+                        <p className={getTextMutedClass()}>Tournament Scheduler & Scorer</p>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -293,23 +315,23 @@
                         <div className="lg:col-span-4 space-y-6">
                             
                             {/* Players Card */}
-                            <div className="glass-panel rounded-xl p-6 shadow-lg">
+                            <div className={`${getPanelClass()} rounded-xl p-6 shadow-lg`}>
                                 <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-xl font-bold text-white"><i className="fa-solid fa-users mr-2"></i> Players</h2>
-                                    <span className="bg-slate-700 px-2 py-1 rounded text-xs text-slate-300">{players.length} Players</span>
+                                    <h2 className={`text-xl font-bold ${getTextPanelClass()}`}><i className="fa-solid fa-users mr-2"></i> Players</h2>
+                                    <span className={`${getPanelHeaderBgClass()} px-2 py-1 rounded text-xs ${getTextMutedClass()}`}>{players.length} Players</span>
                                 </div>
                                 
                                 {!tournamentStarted && (
                                     <div className="flex gap-2 mb-4">
                                         <input 
                                             type="text" 
-                                            className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-green-500"
+                                            className={`w-full ${getInputBgClass()} ${getInputBorderClass()} rounded px-3 py-2 ${getTextPanelClass()} focus:outline-none focus:border-green-500`}
                                             placeholder="Add player..."
                                             value={newPlayerName}
                                             onChange={(e) => setNewPlayerName(e.target.value)}
                                             onKeyPress={(e) => e.key === 'Enter' && addPlayer()}
                                         />
-                                        <button onClick={addPlayer} className="bg-green-600 hover:bg-green-700 text-white px-4 rounded transition">
+                                        <button onClick={addPlayer} className={`${getPrimaryBgClass(600)} ${getPrimaryHoverClass(700)} text-white px-4 rounded transition`}>
                                             <i className="fa-solid fa-plus"></i>
                                         </button>
                                     </div>
@@ -317,7 +339,7 @@
 
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     {players.map((p, idx) => (
-                                        <div key={idx} className="group relative bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-full text-sm flex items-center transition cursor-default">
+                                        <div key={idx} className={`group relative ${getPanelHeaderBgClass()} ${getThemeClass('hover:bg-slate-600', 'hover:bg-gray-300')} px-3 py-1 rounded-full text-sm flex items-center transition cursor-default`}>
                                             {p}
                                             {!tournamentStarted && (
                                                 <button onClick={() => removePlayer(idx)} className="ml-2 text-red-400 hover:text-red-300">
@@ -330,10 +352,10 @@
 
                                 {!tournamentStarted ? (
                                     <div className="flex gap-2">
-                                        <button onClick={shufflePlayers} className="flex-1 bg-slate-600 hover:bg-slate-500 py-2 rounded text-white font-semibold transition">
+                                        <button onClick={shufflePlayers} className={`flex-1 ${getThemeClass('bg-slate-600 hover:bg-slate-500', 'bg-gray-400 hover:bg-gray-500')} py-2 rounded text-white font-semibold transition`}>
                                             <i className="fa-solid fa-shuffle mr-2"></i> Shuffle
                                         </button>
-                                        <button onClick={generateSchedule} className="flex-1 bg-green-600 hover:bg-green-500 py-2 rounded text-white font-semibold transition">
+                                        <button onClick={generateSchedule} className={`flex-1 ${getPrimaryBgClass(600)} ${getPrimaryHoverClass(500)} py-2 rounded text-white font-semibold transition`}>
                                             Start <i className="fa-solid fa-play ml-2"></i>
                                         </button>
                                     </div>
@@ -346,16 +368,16 @@
 
                             {/* Leaderboard Card */}
                             {tournamentStarted && (
-                                <div className="glass-panel rounded-xl p-6 shadow-lg border-t-4 border-t-yellow-500">
+                                <div className={`${getPanelClass()} rounded-xl p-6 shadow-lg border-t-4 ${theme === 'dark' ? 'border-t-yellow-500' : 'border-t-yellow-600'}`}>
                                     <div className="flex justify-between items-center mb-4">
-                                        <h2 className="text-xl font-bold text-white"><i className="fa-solid fa-trophy mr-2 text-yellow-400"></i> Standings</h2>
-                                        <button onClick={exportToCSV} className="text-xs bg-green-800 hover:bg-green-700 text-green-100 px-2 py-1 rounded">
+                                        <h2 className={`text-xl font-bold ${getTextPanelClass()}`}><i className={`fa-solid fa-trophy mr-2 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}></i> Standings</h2>
+                                        <button onClick={exportToCSV} className={`text-xs ${getPrimaryBgClass(800)} ${getPrimaryHoverClass(700)} ${getPrimaryColorClass(100)} px-2 py-1 rounded`}>
                                             <i className="fa-solid fa-file-excel mr-1"></i> Export Excel
                                         </button>
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm text-left">
-                                            <thead className="text-slate-400 border-b border-slate-600">
+                                            <thead className={`${getTextMutedClass()} border-b ${getInputBorderClass()}`}>
                                                 <tr>
                                                     <th className="py-2">Player</th>
                                                     <th className="py-2 text-center">P</th>
@@ -366,15 +388,15 @@
                                             </thead>
                                             <tbody>
                                                 {leaderboard.map((p, i) => (
-                                                    <tr key={i} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition">
+                                                    <tr key={i} className={`border-b ${getTableBorderClass()} ${getThemeClass('hover:bg-slate-700/30', 'hover:bg-gray-200/50')} transition`}>
                                                         <td className="py-2 font-medium">
-                                                            {i===0 && <i className="fa-solid fa-crown text-yellow-500 mr-1"></i>}
+                                                            {i===0 && <i className={`fa-solid fa-crown mr-1 ${theme === 'dark' ? 'text-yellow-500' : 'text-yellow-600'}`}></i>}
                                                             {p.name}
                                                         </td>
-                                                        <td className="py-2 text-center text-slate-400">{p.played}</td>
-                                                        <td className="py-2 text-center text-green-400">{p.wins}</td>
-                                                        <td className={`py-2 text-center ${p.diff > 0 ? 'text-green-400' : 'text-red-400'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
-                                                        <td className="py-2 text-right font-bold text-white">{p.points}</td>
+                                                        <td className={`py-2 text-center ${getTextMutedClass()}`}>{p.played}</td>
+                                                        <td className={`py-2 text-center ${getPrimaryColorClass(400)}`}>{p.wins}</td>
+                                                        <td className={`py-2 text-center ${p.diff > 0 ? getPrimaryColorClass(400) : 'text-red-400'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
+                                                        <td className={`py-2 text-right font-bold ${getTextPanelClass()}`}>{p.points}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -386,63 +408,63 @@
 
                         {/* RIGHT COLUMN: Schedule */}
                         <div className="lg:col-span-8">
-                            <div className="glass-panel rounded-xl p-6 shadow-lg min-h-[600px]">
-                                <h2 className="text-xl font-bold text-white mb-6 flex items-center">
+                            <div className={`${getPanelClass()} rounded-xl p-6 shadow-lg min-h-[600px]`}>
+                                <h2 className={`text-xl font-bold ${getTextPanelClass()} mb-6 flex items-center`}>
                                     <i className="fa-regular fa-calendar-check mr-2"></i> 
                                     Match Schedule
-                                    {tournamentStarted && <span className="ml-3 text-sm font-normal text-slate-400">({matches.length} Matches Generated - Partner Rotation)</span>}
+                                    {tournamentStarted && <span className={`ml-3 text-sm font-normal ${getTextMutedClass()}`}>({matches.length} Matches Generated - Partner Rotation)</span>}
                                 </h2>
 
                                 {!tournamentStarted ? (
-                                    <div className="flex flex-col items-center justify-center h-64 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">
+                                    <div className={`flex flex-col items-center justify-center h-64 ${getTextMutedClass()} border-2 border-dashed ${getPanelBorderClass()} rounded-xl`}>
                                         <i className="fa-solid fa-clipboard-list text-4xl mb-4"></i>
                                         <p>Add players and click Start to generate fixtures.</p>
                                     </div>
                                 ) : (
                                     <div className="grid gap-4">
                                         {matches.map((match) => (
-                                            <div key={match.id} className={`relative rounded-lg p-4 transition-all duration-200 border ${match.played ? 'bg-slate-800/80 border-slate-600' : 'bg-slate-800/40 border-slate-700'}`}>
+                                            <div key={match.id} className={`relative rounded-lg p-4 transition-all duration-200 border ${getThemeClass('bg-slate-800/80 border-slate-600', 'bg-white/80 border-gray-300')} ${match.played ? getThemeClass('bg-slate-800/80 border-slate-600', 'bg-gray-100/90 border-gray-300') : getThemeClass('bg-slate-800/40 border-slate-700', 'bg-white/70 border-gray-300')}`}>
                                                 <div className="absolute top-2 left-3 text-xs text-slate-500 font-mono">Match #{match.id}</div>
                                                 
                                                 <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-4">
                                                     
                                                     {/* Team 1 */}
-                                                    <div className={`flex-1 flex flex-col items-center p-2 rounded ${match.score1 > match.score2 && match.played ? 'bg-green-900/20 ring-1 ring-green-500/50' : ''}`}>
-                                                        <div className="flex gap-2 mb-2 font-semibold text-lg">
+                                                    <div className={`flex-1 flex flex-col items-center p-2 rounded ${match.score1 > match.score2 && match.played ? `${getPrimaryBgClass(900)}/20 ring-1 ${getPrimaryRingClass()}` : ''}`}>
+                                                        <div className={`flex gap-2 mb-2 font-semibold text-lg ${getTextPanelClass()}`}>
                                                             <span>{match.t1[0]}</span> & <span>{match.t1[1]}</span>
                                                         </div>
                                                         <input 
                                                             type="number" 
                                                             value={match.score1} 
                                                             onChange={(e) => updateScore(match.id, 'score1', e.target.value)}
-                                                            className="bg-slate-900 text-center text-2xl font-bold w-20 py-1 rounded border border-slate-600 focus:border-green-500 focus:outline-none"
+                                                            className={`${getThemeClass('bg-slate-900', 'bg-gray-200')} text-center text-2xl font-bold w-20 py-1 rounded border ${getInputBorderClass()} ${getTextPanelClass()} focus:border-green-500 focus:outline-none`}
                                                         />
                                                     </div>
 
                                                     {/* VS Badge */}
-                                                    <div className="text-slate-500 font-bold text-xl px-2">VS</div>
+                                                    <div className={`font-bold text-xl px-2 ${getTextMutedClass()}`}>VS</div>
 
                                                     {/* Team 2 */}
-                                                    <div className={`flex-1 flex flex-col items-center p-2 rounded ${match.score2 > match.score1 && match.played ? 'bg-green-900/20 ring-1 ring-green-500/50' : ''}`}>
-                                                        <div className="flex gap-2 mb-2 font-semibold text-lg">
+                                                    <div className={`flex-1 flex flex-col items-center p-2 rounded ${match.score2 > match.score1 && match.played ? `${getPrimaryBgClass(900)}/20 ring-1 ${getPrimaryRingClass()}` : ''}`}>
+                                                        <div className={`flex gap-2 mb-2 font-semibold text-lg ${getTextPanelClass()}`}>
                                                             <span>{match.t2[0]}</span> & <span>{match.t2[1]}</span>
                                                         </div>
                                                         <input 
                                                             type="number" 
                                                             value={match.score2} 
                                                             onChange={(e) => updateScore(match.id, 'score2', e.target.value)}
-                                                            className="bg-slate-900 text-center text-2xl font-bold w-20 py-1 rounded border border-slate-600 focus:border-green-500 focus:outline-none"
+                                                            className={`${getThemeClass('bg-slate-900', 'bg-gray-200')} text-center text-2xl font-bold w-20 py-1 rounded border ${getInputBorderClass()} ${getTextPanelClass()} focus:border-green-500 focus:outline-none`}
                                                         />
                                                     </div>
                                                 </div>
 
                                                 {/* Meta Data */}
-                                                <div className="mt-4 pt-3 border-t border-slate-700 flex items-center gap-2">
-                                                    <span className="text-xs text-slate-400 uppercase tracking-wider">Play Type:</span>
+                                                <div className={`mt-4 pt-3 border-t ${getPanelBorderClass()} flex items-center gap-2`}>
+                                                    <span className={`text-xs ${getTextMutedClass()} uppercase tracking-wider`}>Play Type:</span>
                                                     <select 
                                                         value={match.type} 
                                                         onChange={(e) => updateType(match.id, e.target.value)}
-                                                        className="bg-slate-900 text-xs text-slate-300 border border-slate-600 rounded px-2 py-1 focus:outline-none"
+                                                        className={`${getThemeClass('bg-slate-900 text-slate-300 border-slate-600', 'bg-gray-200 text-gray-800 border-gray-300')} text-xs rounded px-2 py-1 focus:outline-none`}
                                                     >
                                                         <option value="Normal">Normal</option>
                                                         <option value="Smash Heavy">Smash Heavy</option>
@@ -452,7 +474,7 @@
                                                     </select>
                                                     
                                                     {match.played && (
-                                                        <span className="ml-auto text-xs text-slate-400">
+                                                        <span className={`ml-auto text-xs ${getTextMutedClass()}`}>
                                                             Diff: {Math.abs(match.score1 - match.score2)}
                                                         </span>
                                                     )}
