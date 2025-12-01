@@ -48,6 +48,15 @@
         .shuttle-rocker {
             animation: rocker 1.5s infinite ease-in-out;
         }
+        @keyframes rocker {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(45deg); }
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
     </style>
 </head>
 <body class="min-h-screen">
