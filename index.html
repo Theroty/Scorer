@@ -44,15 +44,23 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(0, 0, 0, 0.1);
         }
+        /* NEW: Shuttle Rocker Animation for Preloader */
+        .shuttle-rocker {
+            animation: rocker 1.5s infinite ease-in-out;
+        }
     </style>
 </head>
 <body class="min-h-screen">
-    <div id="app-container" class="p-4 md:p-8 max-w-7xl mx-auto">
+    <div id="preloader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-opacity duration-500">
+        <i class="fa-solid fa-feather-pointed text-6xl text-green-500 shuttle-rocker"></i>
+        <p class="text-xl text-slate-400 mt-6">Loading tournament...</p>
+    </div>
+    <div id="app-container" class="p-4 md:p-8 max-w-7xl mx-auto transition-opacity duration-500">
         <!-- The entire application UI will be rendered here by jQuery -->
     </div>
 
     <!-- FOOTER ELEMENT - Content and styling updated by JS -->
-    <footer id="app-footer" class="py-4 text-center text-sm mt-8"></footer>
+    <footer id="app-footer" class="py-4 text-center text-sm mt-8 transition-opacity duration-500"></footer>
 
     <script>
         // --- GLOBAL STATE ---
@@ -611,6 +619,26 @@
             attachSecurityListeners();
             renderAll();
         });
+
+        $(document).ready(function() {
+            attachSecurityListeners();
+           
+            // The renderAll() must be called inside ready() to ensure jQuery is initialized,
+            // but the UI should only become visible after everything else is loaded.
+            renderAll();
+
+            // Hide loader once the entire page (including all assets) is loaded
+            $(window).on('load', function() {
+                // 1. Fade out the preloader
+                $('#preloader').fadeOut(500, function() {
+                    // 2. Remove it from the DOM
+                    $(this).remove();
+                    // 3. Fade in the application content
+                    $('#app-container, #app-footer').animate({ opacity: 1 }, 500);
+                });
+            });
+
+        });
 
     </script>
 </body>
