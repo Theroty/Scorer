@@ -67,10 +67,6 @@
     <div id="app-container" class="p-4 md:p-8 max-w-7xl mx-auto transition-opacity duration-1000">
         <!-- The entire application UI will be rendered here by jQuery -->
     </div>
-
-    <!-- FOOTER ELEMENT - Content and styling updated by JS -->
-    <footer id="app-footer" class="py-4 text-center text-sm mt-8 transition-opacity duration-1000"></footer>
-
     <script>
         // --- GLOBAL STATE ---
         let theme = localStorage.getItem('theme') || 'dark';
@@ -499,21 +495,7 @@
             $('#schedule-card').html(scheduleCardHtml);
         }
         
-        // Footer rendering function
-        function renderFooter() {
-            const currentYear = new Date().getFullYear();
-            const footerHtml = `
-                &copy; ${currentYear} Badminton Tournament Manager. All rights reserved. 
-                <span class="text-xs ml-2 ${getTextMutedClass()}">Policy by theroty.</span>
-            `;
-            const footerElement = $('#app-footer');
-            footerElement.html(footerHtml);
-            
-            // Update classes for theme switch
-            footerElement.removeClass().addClass('py-4 text-center text-sm mt-8 transition-colors');
-            footerElement.addClass(getThemeClass('border-slate-700 border-t text-slate-500', 'border-gray-300 border-t text-gray-600'));
-        }
-
+        
 
         function renderAll() {
             // Apply body theme
