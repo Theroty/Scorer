@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Badminton Tournament Manager (jQuery)</title> 
+    <title>Shuttle Master - Badminton Tournament Manager</title> 
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,55 +15,39 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* Theme-agnostic styles */
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             user-select: none;
             -webkit-user-select: none;
             transition: background-color 0.3s, color 0.3s;
         }
         .shuttle-spin {
-            animation: spin 3s linear infinite;
+            animation: spin 4s linear infinite;
         }
         @keyframes spin { 
             100% { transform: rotate(360deg); } 
         }
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        /* Theme-specific styles (dynamically applied by JS) */
         .glass-panel-dark {
-            background: rgba(30, 41, 59, 0.7); /* slate-800 */
+            background: rgba(30, 41, 59, 0.7);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .glass-panel-light {
-            background: rgba(255, 255, 255, 0.8); /* white */
+            background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(0, 0, 0, 0.1);
         }
-        /* NEW: Shuttle Rocker Animation for Preloader */
-        .shuttle-rocker {
-            animation: rocker 1.5s infinite ease-in-out;
-        }
-        @keyframes rocker {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            50% { transform: translateY(-30px) rotate(45deg); }
-        }
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
+        .score-display {
+            font-variant-numeric: tabular-nums;
+        }
     </style>
 </head>
 <body class="min-h-screen">
 
-    <div id="app-container" class="p-4 md:p-8 max-w-7xl mx-auto transition-opacity duration-1000">
-        <!-- The entire application UI will be rendered here by jQuery -->
+    <div id="app-container" class="p-4 md:p-8 max-w-7xl mx-auto opacity-0 transition-opacity duration-500">
+        <!-- Application UI injected here -->
     </div>
+
     <script>
         // --- GLOBAL STATE ---
         let theme = localStorage.getItem('theme') || 'dark';
@@ -71,13 +55,13 @@
         let matches = [];
         let tournamentStarted = false;
         let matchIdCounter = 1;
+        let matchMode = 'doubles'; // 'singles' or 'doubles'
 
         // --- THEME UTILITIES ---
         const getThemeClass = (darkClass, lightClass) => theme === 'dark' ? darkClass : lightClass;
         const getPrimaryColorClass = (base) => theme === 'dark' ? `text-green-${base}` : `text-blue-${base}`;
         const getPrimaryBgClass = (base) => theme === 'dark' ? `bg-green-${base}` : `bg-blue-${base}`;
         const getPrimaryHoverClass = (base) => theme === 'dark' ? `hover:bg-green-${base}` : `hover:bg-blue-${base}`;
-        const getPrimaryRingClass = () => theme === 'dark' ? `ring-green-500/50` : `ring-blue-500/50`;
         const getPanelClass = () => theme === 'dark' ? 'glass-panel-dark' : 'glass-panel-light';
         const getTextMutedClass = () => theme === 'dark' ? 'text-slate-400' : 'text-gray-600';
         const getInputBorderClass = () => theme === 'dark' ? 'border-slate-600' : 'border-gray-300';
@@ -86,134 +70,122 @@
         const getPanelHeaderBgClass = () => theme === 'dark' ? 'bg-slate-700' : 'bg-gray-200';
         const getTableBorderClass = () => theme === 'dark' ? 'border-slate-700/50' : 'border-gray-300';
 
-        // --- CORE LOGIC FUNCTIONS ---
+        // --- CORE LOGIC ---
 
         function addPlayer() {
             const newPlayerName = $('#new-player-name').val().trim();
             if (newPlayerName && !players.includes(newPlayerName)) {
                 players.push(newPlayerName);
                 $('#new-player-name').val('');
-                // Only render the players card, which will re-attach its listeners
                 renderPlayers(); 
             }
         }
 
         function removePlayer(name) {
             players = players.filter(p => p !== name);
-            // Only render the players card, which will re-attach its listeners
             renderPlayers();
         }
 
         function shufflePlayers() {
             players.sort(() => Math.random() - 0.5);
-            // Only render the players card, which will re-attach its listeners
             renderPlayers();
         }
 
         function generateSchedule() {
-            if (players.length < 4) {
-                console.log("Need at least 4 players for doubles."); 
+            const minPlayers = matchMode === 'doubles' ? 4 : 2;
+            if (players.length < minPlayers) {
+                alert(`Need at least ${minPlayers} players for ${matchMode}.`);
                 return;
             }
 
             matches = [];
             matchIdCounter = 1;
+            let tempPlayers = [...players].sort(() => Math.random() - 0.5);
 
-            let allPairs = [];
-            for (let i = 0; i < players.length; i++) {
-                for (let j = i + 1; j < players.length; j++) {
-                    allPairs.push([players[i], players[j]]);
+            if (matchMode === 'doubles') {
+                // Simplified Round Robin Pairings for Doubles
+                for (let i = 0; i < players.length; i++) {
+                    for (let j = i + 1; j < players.length; j++) {
+                        const team1 = [players[i], players[j]];
+                        const available = players.filter(p => !team1.includes(p));
+                        if (available.length >= 2) {
+                            const team2 = available.slice(0, 2);
+                            matches.push({
+                                id: matchIdCounter++,
+                                t1: team1,
+                                t2: team2,
+                                score1: 0,
+                                score2: 0,
+                                played: false,
+                                type: "Normal"
+                            });
+                        }
+                    }
+                }
+            } else {
+                // Singles Pairings
+                for (let i = 0; i < players.length; i++) {
+                    for (let j = i + 1; j < players.length; j++) {
+                        matches.push({
+                            id: matchIdCounter++,
+                            t1: [players[i]],
+                            t2: [players[j]],
+                            score1: 0,
+                            score2: 0,
+                            played: false,
+                            type: "Normal"
+                        });
+                    }
                 }
             }
-
-            allPairs.sort(() => Math.random() - 0.5);
-
-            allPairs.forEach((pair1) => {
-                const p1 = pair1[0];
-                const p2 = pair1[1];
-                const availableOpponents = players.filter(p => p !== p1 && p !== p2);
-                
-                // Simple opponent assignment: just take the first two available
-                const shuffledOpp = availableOpponents.sort(() => Math.random() - 0.5);
-                const opp1 = shuffledOpp[0];
-                const opp2 = shuffledOpp[1];
-
-                // Ensure we have 4 players before adding a match
-                if (opp1 && opp2) {
-                    matches.push({
-                        id: matchIdCounter++,
-                        t1: [p1, p2],
-                        t2: [opp1, opp2],
-                        score1: 0,
-                        score2: 0,
-                        played: false,
-                        type: "Normal"
-                    });
-                }
-            });
 
             tournamentStarted = true;
             renderAll();
         }
 
-        function updateScore(id, field, value) {
-            const matchIndex = matches.findIndex(m => m.id === id);
-            if (matchIndex !== -1) {
-                const val = parseInt(value) || 0;
-                matches[matchIndex][field] = val;
-                
-                // Mark as played if a score is recorded
-                if (matches[matchIndex].score1 > 0 || matches[matchIndex].score2 > 0) {
-                    matches[matchIndex].played = true;
-                } else {
-                    matches[matchIndex].played = false;
-                }
-
+        function updateScore(id, field, delta) {
+            const match = matches.find(m => m.id === id);
+            if (match) {
+                match[field] = Math.max(0, match[field] + delta);
+                match.played = (match.score1 > 0 || match.score2 > 0);
                 renderLeaderboard();
                 renderSchedule();
             }
         }
 
         function updateType(id, val) {
-            const matchIndex = matches.findIndex(m => m.id === id);
-            if (matchIndex !== -1) {
-                matches[matchIndex].type = val;
+            const match = matches.find(m => m.id === id);
+            if (match) {
+                match.type = val;
                 renderSchedule();
             }
         }
-        
+
         function calculateLeaderboard() {
             const stats = {};
-            
             players.forEach(p => {
                 stats[p] = { name: p, played: 0, wins: 0, losses: 0, diff: 0, points: 0 };
             });
 
             matches.forEach(m => {
                 if (m.played) {
-                    const team1 = m.t1;
-                    const team2 = m.t2;
-                    const s1 = m.score1;
-                    const s2 = m.score2;
-                    const diff = s1 - s2;
-
-                    team1.forEach(p => {
-                        if(stats[p]) {
-                            stats[p].played += 1;
+                    const diff = m.score1 - m.score2;
+                    m.t1.forEach(p => {
+                        if (stats[p]) {
+                            stats[p].played++;
                             stats[p].diff += diff;
-                            if (s1 > s2) { stats[p].wins += 1; stats[p].points += 2; }
-                            else if (s1 === s2) { stats[p].points += 1; }
-                            else { stats[p].losses += 1; }
+                            if (m.score1 > m.score2) { stats[p].wins++; stats[p].points += 2; }
+                            else if (m.score1 === m.score2) { stats[p].points += 1; }
+                            else { stats[p].losses++; }
                         }
                     });
-
-                    team2.forEach(p => {
-                        if(stats[p]) {
-                            stats[p].played += 1;
+                    m.t2.forEach(p => {
+                        if (stats[p]) {
+                            stats[p].played++;
                             stats[p].diff -= diff;
-                            if (s2 > s1) { stats[p].wins += 1; stats[p].points += 2; }
-                            else if (s1 === s2) { stats[p].points += 1; }
-                            else { stats[p].losses += 1; }
+                            if (m.score2 > m.score1) { stats[p].wins++; stats[p].points += 2; }
+                            else if (m.score1 === m.score2) { stats[p].points += 1; }
+                            else { stats[p].losses++; }
                         }
                     });
                 }
@@ -221,69 +193,234 @@
 
             return Object.values(stats).sort((a, b) => b.points - a.points || b.diff - a.diff);
         }
-        
+
         function exportToCSV() {
             const leaderboardData = calculateLeaderboard();
             let csvContent = "data:text/csv;charset=utf-8,";
-            
-            // Section 1: Leaderboard
-            csvContent += "LEADERBOARD\n";
-            csvContent += "Rank,Player,Matches Played,Wins,Losses,Score Diff,Points\n";
-            leaderboardData.forEach((p, index) => {
-                csvContent += `${index + 1},${p.name},${p.played},${p.wins},${p.losses},${p.diff},${p.points}\n`;
+            csvContent += "Rank,Player,Played,Wins,Losses,Diff,Points\n";
+            leaderboardData.forEach((p, i) => {
+                csvContent += `${i + 1},${p.name},${p.played},${p.wins},${p.losses},${p.diff},${p.points}\n`;
             });
-
-            csvContent += "\nMATCH SCHEDULE\n";
-            csvContent += "Match ID,Team 1 P1,Team 1 P2,Team 2 P1,Team 2 P2,Score T1,Score T2,Playing Type\n";
-            matches.forEach(m => {
-                csvContent += `${m.id},${m.t1[0]},${m.t1[1]},${m.t2[0]},${m.t2[1]},${m.score1},${m.score2},${m.type}\n`;
-            });
-
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "badminton_tournament.csv");
+            link.setAttribute("download", "tournament_results.csv");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        // --- RENDERING FUNCTIONS ---
+        // --- RENDERING ---
 
-        function renderThemeToggle() {
-            return `
-                <div class="w-full flex justify-end">
-                    <button 
-                        id="theme-toggle"
-                        class="p-2 rounded-full transition ${getThemeClass('bg-slate-800 hover:bg-slate-700 text-slate-300', 'bg-gray-200 hover:bg-gray-300 text-gray-600')}"
-                        title="${theme === 'dark' ? 'Switch to Day Mode' : 'Switch to Night Mode'}"
-                    >
+        function renderPlayers() {
+            const listHtml = players.map(p => `
+                <div class="${getPanelHeaderBgClass()} px-3 py-1 rounded-full text-sm flex items-center transition">
+                    ${p}
+                    ${!tournamentStarted ? `<button data-name="${p}" class="remove-p ml-2 text-red-400"><i class="fa-solid fa-times text-xs"></i></button>` : ''}
+                </div>
+            `).join('');
+
+            const cardHtml = `
+                <div class="${getPanelClass()} rounded-xl p-6 shadow-lg mb-6">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa-solid fa-users-gear mr-2 ${getPrimaryColorClass(400)}"></i> Tournament Setup
+                    </h2>
+                    
+                    ${!tournamentStarted ? `
+                        <div class="mb-4">
+                            <label class="text-xs uppercase tracking-widest ${getTextMutedClass()} block mb-2 font-bold">Match Mode</label>
+                            <div class="flex gap-2">
+                                <button onclick="matchMode='singles'; renderPlayers();" class="flex-1 py-2 rounded border ${matchMode === 'singles' ? getPrimaryBgClass(600) + ' text-white border-transparent' : 'border-slate-600 ' + getTextMutedClass()} transition font-semibold">Singles</button>
+                                <button onclick="matchMode='doubles'; renderPlayers();" class="flex-1 py-2 rounded border ${matchMode === 'doubles' ? getPrimaryBgClass(600) + ' text-white border-transparent' : 'border-slate-600 ' + getTextMutedClass()} transition font-semibold">Doubles</button>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mb-4">
+                            <input id="new-player-name" type="text" placeholder="Player Name" class="flex-1 ${getInputBgClass()} border ${getInputBorderClass()} rounded px-3 py-2 ${getTextPanelClass()} focus:ring-1 ${getThemeClass('focus:ring-green-500', 'focus:ring-blue-500')} outline-none" />
+                            <button id="add-p-btn" class="${getPrimaryBgClass(600)} text-white px-4 rounded"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                    ` : ''}
+
+                    <div class="flex flex-wrap gap-2 mb-6">${listHtml}</div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        ${!tournamentStarted ? `
+                            <button id="shuffle-btn" class="py-2 rounded bg-slate-600 text-white hover:bg-slate-500 transition"><i class="fa-solid fa-shuffle mr-2"></i> Shuffle</button>
+                            <button id="start-btn" class="py-2 rounded ${getPrimaryBgClass(600)} text-white hover:opacity-90 transition font-bold">Start Match</button>
+                        ` : `
+                            <button id="reset-btn" class="col-span-2 py-2 rounded bg-red-600/20 text-red-400 border border-red-600/50 hover:bg-red-600 hover:text-white transition">Reset Tournament</button>
+                        `}
+                    </div>
+                </div>
+            `;
+            $('#players-card').html(cardHtml);
+            attachPlayerListeners();
+        }
+
+        function renderLeaderboard() {
+            if (!tournamentStarted) return $('#leaderboard-card').html('');
+            
+            const data = calculateLeaderboard();
+            const rows = data.map((p, i) => `
+                <tr class="border-b ${getTableBorderClass()}">
+                    <td class="py-3 font-medium">${i === 0 ? '🏆 ' : ''}${p.name}</td>
+                    <td class="text-center">${p.played}</td>
+                    <td class="text-center ${getPrimaryColorClass(400)} font-bold">${p.wins}</td>
+                    <td class="text-center ${p.diff >= 0 ? 'text-green-400' : 'text-red-400'}">${p.diff > 0 ? '+' : ''}${p.diff}</td>
+                    <td class="text-right font-black text-lg ${getTextPanelClass()}">${p.points}</td>
+                </tr>
+            `).join('');
+
+            $('#leaderboard-card').html(`
+                <div class="${getPanelClass()} rounded-xl p-6 shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold"><i class="fa-solid fa-ranking-star mr-2 text-yellow-500"></i> Rankings</h2>
+                        <button onclick="exportToCSV()" class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">Export</button>
+                    </div>
+                    <table class="w-full text-sm">
+                        <thead class="${getTextMutedClass()} uppercase text-[10px] tracking-widest border-b ${getInputBorderClass()}">
+                            <tr>
+                                <th class="text-left pb-2">Player</th>
+                                <th class="pb-2">P</th>
+                                <th class="pb-2">W</th>
+                                <th class="pb-2">+/-</th>
+                                <th class="text-right pb-2">Pts</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `);
+        }
+
+        function renderSchedule() {
+            if (!tournamentStarted) {
+                return $('#schedule-card').html(`
+                    <div class="h-full flex flex-col items-center justify-center p-12 text-center ${getTextMutedClass()} border-2 border-dashed ${getInputBorderClass()} rounded-2xl">
+                        <i class="fa-solid fa-calendar-plus text-5xl mb-4 opacity-20"></i>
+                        <p class="text-lg">No matches scheduled yet.<br>Add players and click Start to begin.</p>
+                    </div>
+                `);
+            }
+
+            const matchesHtml = matches.map(m => `
+                <div class="${getPanelClass()} border ${m.played ? getThemeClass('border-green-500/30 bg-green-500/5', 'border-blue-500/30 bg-blue-500/5') : getInputBorderClass()} rounded-xl p-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 px-3 py-1 text-[10px] font-bold uppercase tracking-tighter ${getThemeClass('bg-slate-700 text-slate-400', 'bg-gray-200 text-gray-500')}">Match #${m.id}</div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-7 items-center gap-4">
+                        <!-- Team 1 -->
+                        <div class="md:col-span-3 text-center">
+                            <div class="font-bold text-lg mb-3 ${getTextPanelClass()}">
+                                ${m.t1.join(' & ')}
+                            </div>
+                            <div class="flex items-center justify-center gap-3">
+                                <button onclick="updateScore(${m.id}, 'score1', -1)" class="w-10 h-10 rounded-full border ${getInputBorderClass()} hover:bg-red-500/20 transition text-red-400"><i class="fa-solid fa-minus"></i></button>
+                                <div class="w-16 h-12 flex items-center justify-center rounded-lg ${getInputBgClass()} border ${getInputBorderClass()} text-2xl font-black score-display">
+                                    ${m.score1}
+                                </div>
+                                <button onclick="updateScore(${m.id}, 'score1', 1)" class="w-10 h-10 rounded-full border ${getInputBorderClass()} hover:${getPrimaryBgClass(500)}/20 transition ${getPrimaryColorClass(400)}"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- VS Divider -->
+                        <div class="md:col-span-1 flex flex-col items-center">
+                            <span class="text-xs font-black opacity-30">VS</span>
+                        </div>
+
+                        <!-- Team 2 -->
+                        <div class="md:col-span-3 text-center">
+                            <div class="font-bold text-lg mb-3 ${getTextPanelClass()}">
+                                ${m.t2.join(' & ')}
+                            </div>
+                            <div class="flex items-center justify-center gap-3">
+                                <button onclick="updateScore(${m.id}, 'score2', -1)" class="w-10 h-10 rounded-full border ${getInputBorderClass()} hover:bg-red-500/20 transition text-red-400"><i class="fa-solid fa-minus"></i></button>
+                                <div class="w-16 h-12 flex items-center justify-center rounded-lg ${getInputBgClass()} border ${getInputBorderClass()} text-2xl font-black score-display">
+                                    ${m.score2}
+                                </div>
+                                <button onclick="updateScore(${m.id}, 'score2', 1)" class="w-10 h-10 rounded-full border ${getInputBorderClass()} hover:${getPrimaryBgClass(500)}/20 transition ${getPrimaryColorClass(400)}"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t ${getInputBorderClass()} flex justify-between items-center">
+                         <select onchange="updateType(${m.id}, this.value)" class="bg-transparent text-xs ${getTextMutedClass()} outline-none">
+                            <option value="Normal" ${m.type==='Normal'?'selected':''}>Normal Match</option>
+                            <option value="Final" ${m.type==='Final'?'selected':''}>Tournament Final</option>
+                            <option value="Friendly" ${m.type==='Friendly'?'selected':''}>Friendly</option>
+                        </select>
+                        <span class="text-[10px] uppercase font-bold ${m.played ? getPrimaryColorClass(400) : 'text-orange-400'}">
+                            ${m.played ? '<i class="fa-solid fa-check-double mr-1"></i> Completed' : '<i class="fa-solid fa-clock mr-1"></i> Pending'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+
+            $('#schedule-card').html(`
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold mb-4 flex items-center ${getTextPanelClass()}">
+                        <i class="fa-solid fa-calendar-days mr-2 ${getPrimaryColorClass(400)}"></i> Match Schedule
+                    </h2>
+                    <div class="grid grid-cols-1 gap-4">${matchesHtml}</div>
+                </div>
+            `);
+        }
+
+        function renderAll() {
+            $('body').removeClass('bg-slate-900 text-slate-200 bg-gray-50 text-gray-900')
+                     .addClass(getThemeClass('bg-slate-900 text-slate-200', 'bg-gray-50 text-gray-900'));
+
+            $('#app-container').html(`
+                <div class="flex justify-between items-center mb-10">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl ${getPrimaryBgClass(600)} flex items-center justify-center text-white text-2xl shadow-lg">
+                            <i class="fa-solid fa-feather-pointed shuttle-spin"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-black tracking-tight ${getTextPanelClass()}">SHUTTLE MASTER</h1>
+                            <p class="text-[10px] uppercase tracking-[0.2em] font-bold ${getPrimaryColorClass(500)}">Tournament Engine</p>
+                        </div>
+                    </div>
+                    <button id="theme-btn" class="w-10 h-10 rounded-full bg-slate-800 text-yellow-400 flex items-center justify-center border border-slate-700">
                         <i class="fa-solid ${theme === 'dark' ? 'fa-sun' : 'fa-moon'}"></i>
                     </button>
                 </div>
-            `;
-        }
-        
-        // Helper to attach listeners specific to the Player Card, called after every re-render of this card.
-        function attachPlayerCardListeners() {
-            // Player Management
-            $('#add-player-btn').off('click').on('click', addPlayer);
-            $('#new-player-name').off('keypress').on('keypress', function(e) {
-                if (e.key === 'Enter') addPlayer();
-            });
-            // Delegated click handler for dynamically created remove buttons
-            $('#players-card').off('click', '.remove-player-btn').on('click', '.remove-player-btn', function() {
-                const name = $(this).data('player-name');
-                removePlayer(name);
-            });
-            $('#shuffle-players-btn').off('click').on('click', shufflePlayers);
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-4">
+                        <div id="players-card"></div>
+                        <div id="leaderboard-card"></div>
+                    </div>
+                    <div class="lg:col-span-8">
+                        <div id="schedule-card"></div>
+                    </div>
+                </div>
+            `);
+
+            renderPlayers();
+            renderLeaderboard();
+            renderSchedule();
             
-            // Tournament Start/Reset
-            $('#start-tournament-btn').off('click').on('click', generateSchedule);
-            $('#reset-tournament-btn').off('click').on('click', function() {
-                // NOTE: Using window.confirm() here is against best practices.
-                // In a production app, this should be replaced with a custom modal.
-                if(confirm("Reset tournament? All scores will be lost.")) { 
+            $('#app-container').removeClass('opacity-0');
+            attachGlobalListeners();
+        }
+
+        // --- LISTENERS ---
+
+        function attachGlobalListeners() {
+            $('#theme-btn').on('click', () => {
+                theme = theme === 'dark' ? 'light' : 'dark';
+                localStorage.setItem('theme', theme);
+                renderAll();
+            });
+        }
+
+        function attachPlayerListeners() {
+            $('#add-p-btn').on('click', addPlayer);
+            $('#new-player-name').on('keypress', e => e.key === 'Enter' && addPlayer());
+            $('.remove-p').on('click', function() { removePlayer($(this).data('name')); });
+            $('#shuffle-btn').on('click', shufflePlayers);
+            $('#start-btn').on('click', generateSchedule);
+            $('#reset-btn').on('click', () => {
+                if (confirm("Reset everything? Match data will be cleared.")) {
                     tournamentStarted = false;
                     matches = [];
                     renderAll();
@@ -291,342 +428,12 @@
             });
         }
 
-
-        function renderPlayers() {
-            const playerListHtml = players.map((p, idx) => `
-                <div class="group relative ${getPanelHeaderBgClass()} ${getThemeClass('hover:bg-slate-600', 'hover:bg-gray-300')} px-3 py-1 rounded-full text-sm flex items-center transition cursor-default">
-                    ${p}
-                    ${!tournamentStarted ? `<button data-player-name="${p}" class="remove-player-btn ml-2 text-red-400 hover:text-red-300"><i class="fa-solid fa-times"></i></button>` : ''}
-                </div>
-            `).join('');
-
-            const playerCardHtml = `
-                <div class="${getPanelClass()} rounded-xl p-6 shadow-lg">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold ${getTextPanelClass()}"><i class="fa-solid fa-users mr-2"></i> Players</h2>
-                        <span class="${getPanelHeaderBgClass()} px-2 py-1 rounded text-xs ${getTextMutedClass()}">${players.length} Players</span>
-                    </div>
-                    
-                    ${!tournamentStarted ? `
-                        <div class="flex gap-2 mb-4">
-                            <input 
-                                id="new-player-name"
-                                type="text" 
-                                class="w-full ${getInputBgClass()} ${getInputBorderClass()} rounded px-3 py-2 ${getTextPanelClass()} focus:outline-none ${getThemeClass('focus:border-green-500', 'focus:border-blue-500')}"
-                                placeholder="Add player..."
-                                value=""
-                            />
-                            <button id="add-player-btn" class="${getPrimaryBgClass(600)} ${getPrimaryHoverClass(700)} text-white px-4 rounded transition">
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
-                        </div>
-                    ` : ''}
-
-                    <div id="player-list-container" class="flex flex-wrap gap-2 mb-4">
-                        ${playerListHtml}
-                    </div>
-
-                    ${!tournamentStarted ? `
-                        <div class="flex gap-2">
-                            <button id="shuffle-players-btn" class="flex-1 ${getThemeClass('bg-slate-600 hover:bg-slate-500', 'bg-gray-400 hover:bg-gray-500')} py-2 rounded text-white font-semibold transition">
-                                <i class="fa-solid fa-shuffle mr-2"></i> Shuffle
-                            </button>
-                            <button id="start-tournament-btn" class="flex-1 ${getPrimaryBgClass(600)} ${getPrimaryHoverClass(500)} py-2 rounded text-white font-semibold transition">
-                                Start <i class="fa-solid fa-play ml-2"></i>
-                            </button>
-                        </div>
-                    ` : `
-                        <button id="reset-tournament-btn" class="w-full bg-red-900/50 hover:bg-red-900 text-red-200 py-2 rounded border border-red-800 transition">
-                            Reset Tournament
-                        </button>
-                    `}
-                </div>
-            `;
-            $('#players-card').html(playerCardHtml);
-            
-            // FIX: Re-attach event listeners specific to the player card immediately after rendering
-            attachPlayerCardListeners();
-        }
-
-        function renderLeaderboard() {
-            const leaderboardData = calculateLeaderboard();
-            let leaderboardHtml = '';
-
-            if (tournamentStarted) {
-                const rows = leaderboardData.map((p, i) => `
-                    <tr class="border-b ${getTableBorderClass()} ${getThemeClass('hover:bg-slate-700/30', 'hover:bg-gray-200/50')} transition">
-                        <td class="py-2 font-medium">
-                            ${i===0 ? `<i class="fa-solid fa-crown mr-1 ${theme === 'dark' ? 'text-yellow-500' : 'text-yellow-600'}"></i>` : ''}
-                            ${p.name}
-                        </td>
-                        <td class="py-2 text-center ${getTextMutedClass()}">${p.played}</td>
-                        <td class="py-2 text-center ${getPrimaryColorClass(400)}">${p.wins}</td>
-                        <td class="py-2 text-center ${p.diff > 0 ? getPrimaryColorClass(400) : 'text-red-400'}">${p.diff > 0 ? `+${p.diff}` : p.diff}</td>
-                        <td class="py-2 text-right font-bold ${getTextPanelClass()}">${p.points}</td>
-                    </tr>
-                `).join('');
-
-                leaderboardHtml = `
-                    <div class="${getPanelClass()} rounded-xl p-6 shadow-lg border-t-4 ${theme === 'dark' ? 'border-t-yellow-500' : 'border-t-yellow-600'}">
-                        <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-xl font-bold ${getTextPanelClass()}"><i class="fa-solid fa-trophy mr-2 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}"></i> Standings</h2>
-                            <button id="export-csv-btn" class="text-xs ${getPrimaryBgClass(800)} ${getPrimaryHoverClass(700)} ${getPrimaryColorClass(100)} px-2 py-1 rounded">
-                                <i class="fa-solid fa-file-excel mr-1"></i> Export Excel
-                            </button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left">
-                                <thead class="${getTextMutedClass()} border-b ${getInputBorderClass()}">
-                                    <tr>
-                                        <th class="py-2">Player</th>
-                                        <th class="py-2 text-center">P</th>
-                                        <th class="py-2 text-center">W</th>
-                                        <th class="py-2 text-center">Diff</th>
-                                        <th class="py-2 text-right">Pts</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${rows}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                `;
-            }
-            $('#leaderboard-card').html(leaderboardHtml);
-        }
-
-        function renderSchedule() {
-            let scheduleContentHtml = '';
-
-            if (!tournamentStarted) {
-                scheduleContentHtml = `
-                    <div class="flex flex-col items-center justify-center h-64 ${getTextMutedClass()} border-2 border-dashed ${getThemeClass('border-slate-700', 'border-gray-300')} rounded-xl">
-                        <i class="fa-solid fa-clipboard-list text-4xl mb-4"></i>
-                        <p>Add players and click Start to generate fixtures.</p>
-                    </div>
-                `;
-            } else {
-                const matchesHtml = matches.map(match => {
-                    const t1Class = match.score1 > match.score2 && match.played ? `${getPrimaryBgClass(900)}/20 ring-1 ${getPrimaryRingClass()}` : '';
-                    const t2Class = match.score2 > match.score1 && match.played ? `${getPrimaryBgClass(900)}/20 ring-1 ${getPrimaryRingClass()}` : '';
-                    const matchBgClass = match.played 
-                        ? getThemeClass('bg-slate-800/80 border-slate-600', 'bg-gray-100/90 border-gray-300')
-                        : getThemeClass('bg-slate-800/40 border-slate-700', 'bg-white/70 border-gray-300');
-
-                    return `
-                        <div class="relative rounded-lg p-4 transition-all duration-200 border ${matchBgClass}">
-                            <div class="absolute top-2 left-3 text-xs text-slate-500 font-mono">Match #${match.id}</div>
-                            
-                            <div class="flex flex-col md:flex-row items-center justify-between gap-4 mt-4">
-                                
-                                <!-- Team 1 -->
-                                <div class="flex-1 flex flex-col items-center p-2 rounded ${t1Class}">
-                                    <div class="flex gap-2 mb-2 font-semibold text-lg ${getTextPanelClass()}">
-                                        <span>${match.t1[0]}</span> & <span>${match.t1[1]}</span>
-                                    </div>
-                                    <input 
-                                        type="number" 
-                                        data-match-id="${match.id}" 
-                                        data-field="score1"
-                                        value="${match.score1}" 
-                                        min="0"
-                                        class="score-input ${getThemeClass('bg-slate-900', 'bg-gray-200')} text-center text-2xl font-bold w-20 py-1 rounded border ${getInputBorderClass()} ${getTextPanelClass()} focus:outline-none ${getThemeClass('focus:border-green-500', 'focus:border-blue-500')}"
-                                    />
-                                </div>
-
-                                <!-- VS Badge -->
-                                <div class="font-bold text-xl px-2 ${getTextMutedClass()}">VS</div>
-
-                                <!-- Team 2 -->
-                                <div class="flex-1 flex flex-col items-center p-2 rounded ${t2Class}">
-                                    <div class="flex gap-2 mb-2 font-semibold text-lg ${getTextPanelClass()}">
-                                        <span>${match.t2[0]}</span> & <span>${match.t2[1]}</span>
-                                    </div>
-                                    <input 
-                                        type="number" 
-                                        data-match-id="${match.id}" 
-                                        data-field="score2"
-                                        value="${match.score2}" 
-                                        min="0"
-                                        class="score-input ${getThemeClass('bg-slate-900', 'bg-gray-200')} text-center text-2xl font-bold w-20 py-1 rounded border ${getInputBorderClass()} ${getTextPanelClass()} focus:outline-none ${getThemeClass('focus:border-green-500', 'focus:border-blue-500')}"
-                                    />
-                                </div>
-                            </div>
-
-                            <!-- Meta Data -->
-                            <div class="mt-4 pt-3 border-t ${getThemeClass('border-slate-700', 'border-gray-300')} flex items-center gap-2">
-                                <span class="text-xs ${getTextMutedClass()} uppercase tracking-wider">Play Type:</span>
-                                <select 
-                                    data-match-id="${match.id}"
-                                    class="type-select ${getThemeClass('bg-slate-900 text-slate-300 border-slate-600', 'bg-gray-200 text-gray-800 border-gray-300')} text-xs rounded px-2 py-1 focus:outline-none"
-                                >
-                                    <option value="Normal" ${match.type === 'Normal' ? 'selected' : ''}>Normal</option>
-                                    <option value="Smash Heavy" ${match.type === 'Smash Heavy' ? 'selected' : ''}>Smash Heavy</option>
-                                    <option value="Drop Game" ${match.type === 'Drop Game' ? 'selected' : ''}>Drop Game</option>
-                                    <option value="Rally" ${match.type === 'Rally' ? 'selected' : ''}>Long Rally</option>
-                                    <option value="Net Play" ${match.type === 'Net Play' ? 'selected' : ''}>Net Play</option>
-                                </select>
-                                
-                                ${match.played ? `<span class="ml-auto text-xs ${getTextMutedClass()}">Diff: ${Math.abs(match.score1 - match.score2)}</span>` : ''}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                scheduleContentHtml = `<div class="grid gap-4">${matchesHtml}</div>`;
-            }
-
-            const scheduleCardHtml = `
-                <div class="${getPanelClass()} rounded-xl p-6 shadow-lg min-h-[600px]">
-                    <h2 class="text-xl font-bold ${getTextPanelClass()} mb-6 flex items-center">
-                        <i class="fa-regular fa-calendar-check mr-2"></i> 
-                        Match Schedule
-                        ${tournamentStarted ? `<span class="ml-3 text-sm font-normal ${getTextMutedClass()}">(${matches.length} Matches Generated)</span>` : ''}
-                    </h2>
-                    <div id="schedule-content">
-                        ${scheduleContentHtml}
-                    </div>
-                </div>
-            `;
-            $('#schedule-card').html(scheduleCardHtml);
-        }
-        
-        
-
-        function renderAll() {
-            // Apply body theme
-            $('body').removeClass('bg-slate-900 text-slate-200 bg-gray-100 text-gray-900');
-            $('body').addClass(getThemeClass('bg-slate-900 text-slate-200', 'bg-gray-100 text-gray-900'));
-
-            // Construct the main container content
-            const appHtml = `
-                ${renderThemeToggle()}
-
-                <!-- Header -->
-                <div class="text-center mb-8 flex flex-col items-center">
-                    <h1 class="text-4xl md:text-5xl font-bold ${getPrimaryColorClass(400)} mb-2 -mt-10">
-                        <i class="fa-solid fa-feather-pointed mr-3 shuttle-spin"></i>
-                        Shuttle Master
-                    </h1>
-                    <p class="${getTextMutedClass()}">Tournament Scheduler & Scorer</p>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    
-                    <!-- LEFT COLUMN: Setup & Leaderboard -->
-                    <div class="lg:col-span-4 space-y-6">
-                        <div id="players-card"></div>
-                        <div id="leaderboard-card"></div>
-                    </div>
-
-                    <!-- RIGHT COLUMN: Schedule -->
-                    <div class="lg:col-span-8">
-                        <div id="schedule-card"></div>
-                    </div>
-                </div>
-            `;
-            $('#app-container').html(appHtml);
-
-            // Render sub-components (these calls will re-attach their specific listeners)
-            renderPlayers();
-            renderLeaderboard();
-            renderSchedule();
-            //renderFooter(); // NEW: Call renderFooter here
-
-            // Attach listeners that don't need re-attaching on card updates (Theme, Score/Type, Export)
-            attachGlobalListeners();
-        }
-
-        // --- EVENT LISTENERS ---
-
-        function attachGlobalListeners() {
-            // Theme Toggle
-            $('#theme-toggle').off('click').on('click', () => {
-                theme = theme === 'dark' ? 'light' : 'dark';
-                localStorage.setItem('theme', theme);
-                renderAll();
-            });
-
-            // Score and Type Updates (Delegated events on the main schedule container)
-            $('#schedule-card').off('input', '.score-input').on('input', '.score-input', function() {
-                const id = parseInt($(this).data('match-id'));
-                const field = $(this).data('field');
-                const value = $(this).val();
-                updateScore(id, field, value);
-            });
-
-            $('#schedule-card').off('change', '.type-select').on('change', '.type-select', function() {
-                const id = parseInt($(this).data('match-id'));
-                const value = $(this).val();
-                updateType(id, value);
-            });
-            
-            // CSV Export (Delegated event on the leaderboard container)
-            $('#leaderboard-card').off('click', '#export-csv-btn').on('click', '#export-csv-btn', exportToCSV);
-        }
-
-
-        // --- SECURITY / DEV TOOLS PROTECTION / RELOAD PREVENTION ---
-        function attachSecurityListeners() {
-            // Disable right-click context menu
-            document.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-            });
-
-            // 1. Prevent closing/reloading if the tournament has started (data loss warning)
-            window.addEventListener('beforeunload', (e) => {
-                if (tournamentStarted) {
-                    // Standard way to trigger a confirmation dialog in modern browsers
-                    e.preventDefault(); 
-                    e.returnValue = 'You have active match data. Are you sure you want to leave or reload? Unsaved data will be lost.';
-                    return e.returnValue;
-                }
-            });
-
-            // 2. Disable keyboard shortcuts for DevTools (F12, Ctrl+Shift+I, Ctrl+U) AND Reload (F5, Ctrl+R)
-            document.addEventListener('keydown', (e) => {
-                // F12
-                if (e.keyCode === 123) {
-                    e.preventDefault();
-                }
-                // Ctrl+Shift+I/J/C (Inspect) or Ctrl+U (View Source)
-                if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'i' || e.key === 'j' || e.key === 'c') || (e.ctrlKey && (e.key === 'U' || e.key === 'u'))) {
-                    e.preventDefault();
-                }
-                
-                // Disable F5 and Ctrl/Cmd+R for Reload
-                if (e.key === 'F5' || (e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
-                    e.preventDefault();
-                }
-            });
-        }
-
-        // --- INITIALIZATION ---
-        $(document).ready(function() {
-            attachSecurityListeners();
+        // Initialize
+        $(document).ready(() => {
             renderAll();
+            // Basic security
+            document.addEventListener('contextmenu', e => e.preventDefault());
         });
-
-        $(document).ready(function() {
-            attachSecurityListeners();
-           
-            // The renderAll() must be called inside ready() to ensure jQuery is initialized,
-            // but the UI should only become visible after everything else is loaded.
-            renderAll();
-
-            // Hide loader once the entire page (including all assets) is loaded
-            $(window).on('load', function() {
-                // 1. Fade out the preloader
-                $('#preloader').fadeOut(500, function() {
-                    // 2. Remove it from the DOM
-                    $(this).remove();
-                    // 3. Fade in the application content
-                    $('#app-container, #app-footer').animate({ opacity: 1 }, 500);
-                });
-            });
-
-        });
 
     </script>
 </body>
